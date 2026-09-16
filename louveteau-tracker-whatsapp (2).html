@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suivi absences louveteaux 2026/2027</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>👦</text></svg>">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js"></script>
+    :root {
+      --text-primary: #1a1a1a;
+      --text-secondary: #666;
+      --text-danger: #c41e3a;
+      --text-success: #2d7d3d;
+      --text-warning: #8b4513;
+      --text-accent: #fff;
+      --text-muted: #999;
+      --bg-danger: #fce4e4;
+      --bg-success: #e4f8e8;
+      --bg-warning: #fff8e4;
+      --bg-accent: #4a90e2;
+      --on-accent: #fff;
+      --fill-accent: #4a90e2;
+      --surface-1: #f5f5f5;
+      --surface-2: #fff;
+      --border: #ddd;
+      --border-strong: #bbb;
+      --radius: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --text-muted: #777;
+        --bg-accent: #5a9ef5;
+        --surface-1: #2a2a2a;
+        --surface-2: #1a1a1a;
+        --border: #444;
+        --border-strong: #555;
+        --fill-accent: #5a9ef5;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--surface-2); color: var(--text-primary); margin: 0; padding: 20px; line-height: 1.5; }
+
+    h2 { font-size: 18px; font-weight: 500; margin: 0 0 8px; color: var(--text-primary); }
+    .subtitle { font-size: 14px; color: var(--text-secondary); margin: 0 0 1.5rem; }
+
+    .action-group { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: center; }
+    input[type="date"] { padding: 8px 12px; border-radius: var(--radius); border: 0.5px solid var(--border); font-size: 13px; }
+    button { padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--fill-accent); color: var(--on-accent); font-size: 13px; font-weight: 500; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .table-wrapper { overflow-x: auto; border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: var(--surface-1); border-bottom: 0.5px solid var(--border-strong); }
+    th { text-align: left; padding: 10px 12px; font-weight: 500; color: var(--text-secondary); }
+    td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); }
+    tbody tr:nth-child(even) { background: var(--surface-1); }
+
+    .warning-banner { background: var(--bg-warning); border: 0.5px solid #ffe4b5; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 1.5rem; font-size: 12px; color: var(--text-warning); }
+    .status-msg { padding: 12px 16px; border-radius: var(--radius); margin-top: 1rem; font-size: 13px; font-weight: 500; display: none; }
+    .status-msg.success { background: var(--bg-success); color: var(--text-success); }
+    .status-msg.danger { background: var(--bg-danger); color: var(--text-danger); }
+
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-box { background: var(--surface-2); border-radius: 12px; border: 0.5px solid var(--border); padding: 1.5rem; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-box h3 { margin: 0 0 1rem; font-size: 16px; }
+
+    .absence-recap { background: var(--bg-danger); border-radius: var(--radius); padding: 12px; margin-bottom: 1rem; border: 0.5px solid #e8b8c0; }
+    .absence-recap p { font-size: 12px; color: var(--text-danger); margin: 0 0 8px; }
+    .absence-recap p:last-child { margin: 0; }
+
+    textarea { width: 100%; padding: 10px; border-radius: var(--radius); border: 0.5px solid var(--border); font-size: 13px; min-height: 80px; resize: vertical; }
+
+    .confirm-section { display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; padding: 12px; background: var(--bg-warning); border-radius: var(--radius); }
+    .confirm-section input { width: 16px; height: 16px; cursor: pointer; }
+    .confirm-section label { font-size: 13px; color: var(--text-warning); font-weight: 500; margin: 0; cursor: pointer; }
+
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions button { flex: 1; }
+
+    .info-banner { background: var(--bg-accent); border: 0.5px solid #4a90e2; border-radius: var(--radius); padding: 12px; margin-bottom: 1rem; font-size: 12px; color: var(--text-accent); }
+  </style>
+</head>
+<body>
+  <div style="max-width: 100%; margin: 0 auto;">
+    <h2>Suivi absences louveteaux 2026/2027</h2>
+    <p class="subtitle">Copie le message directement vers WhatsApp</p>
+
+    <div style="background: var(--surface-1); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 1.5rem; font-size: 13px;">
+      <p style="margin: 0 0 8px; font-weight: 500; color: var(--text-primary);">📋 Comment ça marche :</p>
+      <ol style="margin: 0; padding-left: 20px; color: var(--text-secondary);">
+        <li>Ajoute une sortie (date)</li>
+        <li>Coche les louveteaux présents (absents = cases rouges)</li>
+        <li>Clique "Valider sortie du [date]"</li>
+        <li>Ajoute un commentaire (optionnel)</li>
+        <li>Coche la checkbox "J'ai vérifié"</li>
+        <li>Clique "Copier pour WhatsApp"</li>
+        <li>Ouvre le groupe WhatsApp des Chefs de Groupe → colle → envoie</li>
+      </ol>
+    </div>
+
+    <div class="action-group">
+      <input type="date" id="new-date" />
+      <button onclick="addOuting()">➕ Ajouter sortie</button>
+      <button class="secondary" onclick="sortBySizaine()">📊 Trier par sizaine</button>
+      <span id="sortie-count" style="font-size: 12px; color: var(--text-secondary); margin-left: auto;"></span>
+      <span id="firebase-status" style="font-size: 11px; color: var(--text-secondary); margin-left: 8px;">🔄 Connexion...</span>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead id="table-head"></thead>
+        <tbody id="louveteau-rows"></tbody>
+      </table>
+    </div>
+
+    <div class="warning-banner">
+      ⚠️ Cases rouges = absents. Vérifiez avant de valider.
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <h3 style="font-size: 14px; margin: 0 0 12px; font-weight: 500;">Validation des sorties</h3>
+      <div id="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+    </div>
+
+    <div id="status-msg" class="status-msg"></div>
+
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-box">
+        <h3 id="modal-title">Valider la sortie</h3>
+        
+        <div class="info-banner">
+          💡 Envoyer dans le groupe WhatsApp des Chefs de Groupe
+        </div>
+
+        <div class="absence-recap">
+          <p>Absents</p>
+          <p id="modal-absents" style="margin: 0;"></p>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 12px; color: var(--text-secondary); font-weight: 500; display: block; margin-bottom: 6px;">💬 Commentaire (optionnel)</label>
+          <textarea id="modal-comment" placeholder="Ex: sorties intéressantes, problèmes de comportement, RDV prévu, etc."></textarea>
+        </div>
+
+        <div class="confirm-section">
+          <input type="checkbox" id="modal-confirm" />
+          <label for="modal-confirm">J'ai vérifié les absents</label>
+        </div>
+
+        <div class="modal-actions">
+          <button class="secondary" onclick="closeModal()">Annuler</button>
+          <button id="modal-copy" onclick="copyToClipboard()" disabled>📋 Copier pour WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+const louveteaux = [
+  { nom: "BAZIN de JESSEY", prenom: "Maxence" },
+  { nom: "CHAVANNE", prenom: "Joseph" },
+  { nom: "DE LA BOUVRIE", prenom: "Alexandre" },
+  { nom: "DE MENTQUE", prenom: "Augustin" },
+  { nom: "FROISSART", prenom: "Edgar" },
+  { nom: "DE VANSSAY", prenom: "Henry" },
+  { nom: "DE LEPINEAU", prenom: "Gabriel" },
+  { nom: "SIONNEAU", prenom: "Come" },
+  { nom: "BOULDOIRE", prenom: "Guilhem" },
+  { nom: "MOREL", prenom: "Bartimée" },
+  { nom: "SCHNEIDER", prenom: "Charles" },
+  { nom: "PASQUIER", prenom: "Auguste" },
+  { nom: "FERAL", prenom: "Géraud" },
+  { nom: "de laage", prenom: "Zacharie" },
+  { nom: "de ROMANCE", prenom: "Hippolyte" },
+  { nom: "HUYGHUES DESPOINTES", prenom: "Max" },
+  { nom: "DE LA PONTAIS", prenom: "CARL" },
+  { nom: "CHAVANNE", prenom: "Jean" },
+  { nom: "VIOLET", prenom: "Maximilien" },
+  { nom: "de ROMANCE", prenom: "Théophile" },
+  { nom: "HUYGHUES DESPOINTES", prenom: "RAPHAEL" },
+  { nom: "de mentque", prenom: "Martin" },
+  { nom: "DUGUET", prenom: "Ferdinand" },
+  { nom: "de Vanssay", prenom: "Célestin" }
+];
+
+const sizaineOrder = ["noir", "gris", "blanc", "brun"];
+
+let state = {
+  presences: {},
+  sorties: [{ id: "entree-2026", label: "WE rentrée", date: new Date(2026, 8, 5), canDelete: false }],
+  closedOutings: new Set(),
+  pendingOuting: null,
+  sizaines: {},
+  sortedList: [...louveteaux]
+};
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  const days = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
+  const months = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
+  return `${date.getDate()} ${months[date.getMonth()]} (${days[date.getDay()]})`;
+}
+
+function setSizaine(louveId, value) {
+  if (value) state.sizaines[louveId] = value;
+  else delete state.sizaines[louveId];
+  saveState();
+  render();
+}
+
+function sortBySizaine() {
+  state.sortedList.sort((a, b) => {
+    const aKey = `${a.prenom}-${a.nom}`;
+    const bKey = `${b.prenom}-${b.nom}`;
+    const aIdx = sizaineOrder.indexOf(state.sizaines[aKey] || "");
+    const bIdx = sizaineOrder.indexOf(state.sizaines[bKey] || "");
+    if (aIdx === -1 && bIdx === -1) return 0;
+    if (aIdx === -1) return 1;
+    if (bIdx === -1) return -1;
+    return aIdx - bIdx;
+  });
+  saveState();
+  render();
+  showStatus("Classement par sizaine appliqué", "success");
+}
+
+function addOuting() {
+  const input = document.getElementById("new-date");
+  if (!input.value) { showStatus("Sélectionnez une date", "danger"); return; }
+  if (state.sorties.some(s => s.id === input.value)) { showStatus("Cette sortie existe déjà", "danger"); return; }
+  state.sorties.push({ id: input.value, label: formatDate(input.value), date: new Date(input.value), canDelete: true });
+  state.sorties.sort((a, b) => a.date - b.date);
+  input.value = "";
+  saveState();
+  render();
+  showStatus("Sortie ajoutée", "success");
+}
+
+function removeOuting(sortieId) {
+  if (state.closedOutings.has(sortieId)) { showStatus("Impossible de supprimer une sortie validée", "danger"); return; }
+  state.sorties = state.sorties.filter(s => s.id !== sortieId);
+  Object.keys(state.presences).forEach(key => { if (key.endsWith(`-${sortieId}`)) delete state.presences[key]; });
+  saveState();
+  render();
+  showStatus("Sortie supprimée", "success");
+}
+
+function togglePresence(louveId, sortieId) {
+  if (state.closedOutings.has(sortieId)) return;
+  state.presences[`${louveId}-${sortieId}`] = !state.presences[`${louveId}-${sortieId}`];
+  saveState();
+  render();
+}
+
+function countAbsences(louveId) {
+  let count = 0;
+  state.sorties.forEach(s => { if (!state.presences[`${louveId}-${s.id}`]) count++; });
+  return count;
+}
+
+function openValidationModal(sortieId) {
+  if (state.closedOutings.has(sortieId)) return;
+  const sortie = state.sorties.find(s => s.id === sortieId);
+  state.pendingOuting = sortieId;
+  const absents = state.sortedList.filter(l => !state.presences[`${l.prenom}-${l.nom}-${sortieId}`]);
+  const absentText = absents.length > 0 ? absents.map(a => `${a.prenom} ${a.nom}`).join("\n") : "Tous présents !";
+  document.getElementById("modal-title").textContent = `Valider : ${sortie.label}`;
+  document.getElementById("modal-absents").textContent = absentText;
+  document.getElementById("modal-comment").value = "";
+  document.getElementById("modal-confirm").checked = false;
+  updateSendButton();
+  document.getElementById("modal-overlay").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").style.display = "none";
+  state.pendingOuting = null;
+}
+
+function updateSendButton() {
+  const btn = document.getElementById("modal-copy");
+  const confirmed = document.getElementById("modal-confirm").checked;
+  btn.disabled = !confirmed;
+  btn.style.opacity = confirmed ? "1" : "0.5";
+}
+
+function copyToClipboard() {
+  if (!state.pendingOuting) return;
+  const sortieId = state.pendingOuting;
+  const sortie = state.sorties.find(s => s.id === sortieId);
+  const comment = document.getElementById("modal-comment").value;
+
+  const absents = state.sortedList.filter(l => !state.presences[`${l.prenom}-${l.nom}-${sortieId}`]);
+  const totalLouvs = louveteaux.length;
+  const presentCount = totalLouvs - absents.length;
+
+  const absentDetails = absents.map(l => {
+    const totalAbsences = countAbsences(`${l.prenom}-${l.nom}`);
+    return `  • ${l.prenom} ${l.nom} (${totalAbsences} absence${totalAbsences > 1 ? 's' : ''} dans l'année)`;
+  }).join("\n");
+
+  const message = `Suivi de sortie louveteaux – ${sortie.label}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RÉCAPITULATIF PRÉSENCES
+
+Présents : ${presentCount} / ${totalLouvs}
+Absents : ${absents.length} / ${totalLouvs}
+
+${absents.length > 0 ? `DÉTAIL DES ABSENTS
+
+${absentDetails}
+
+` : "✓ Tous les louveteaux étaient présents !\n\n"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${comment ? `\nCOMMENTAIRE DU CHEF\n\n${comment}\n\n` : ""}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Généré par : Suivi Absences Louveteaux 2026/2027`;
+
+  navigator.clipboard.writeText(message).then(() => {
+    state.closedOutings.add(sortieId);
+    saveState();
+    closeModal();
+    showStatus(`✓ Message copié ! Ouvre le groupe WhatsApp des Chefs et colle.`, "success");
+    render();
+  }).catch(() => {
+    showStatus("❌ Erreur lors de la copie. Réessaye.", "danger");
+  });
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById("status-msg");
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  el.style.display = "block";
+  el.style.background = type === "success" ? "var(--bg-success)" : "var(--bg-danger)";
+  el.style.color = type === "success" ? "var(--text-success)" : "var(--text-danger)";
+  if (type !== "danger") setTimeout(() => el.style.display = "none", 3500);
+}
+
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyC8vsNqHwVCU0Dr0wsfnzZqsky8PBRtylM",
+  authDomain: "outil-absence-louveteaux.firebaseapp.com",
+  databaseURL: "https://outil-absence-louveteaux-default-rtdb.firebaseio.com",
+  projectId: "outil-absence-louveteaux",
+  storageBucket: "outil-absence-louveteaux.firebasestorage.app",
+  messagingSenderId: "732723348044",
+  appId: "1:732723348044:web:230cfa14e99e9ecb402ae9",
+  measurementId: "G-F06G0NDK6Z"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const dbRef = db.ref("louveteau-data");
+
+function saveState() {
+  try {
+    dbRef.set({
+      presences: state.presences,
+      sorties: state.sorties.map(s => ({ ...s, date: s.date.toISOString() })),
+      closedOutings: Array.from(state.closedOutings),
+      sizaines: state.sizaines,
+      sortedList: state.sortedList
+    }).catch(err => console.log("Erreur Firebase:", err));
+  } catch (e) {
+    console.log("Erreur saveState:", e);
+  }
+}
+
+function loadState() {
+  dbRef.once("value", (snapshot) => {
+    try {
+      const data = snapshot.val();
+      if (data) {
+        state.presences = data.presences || {};
+        state.sorties = (data.sorties || [{ id: "entree-2026", label: "WE rentrée", date: new Date(2026, 8, 5).toISOString(), canDelete: false }]).map(s => ({
+          ...s,
+          date: new Date(s.date)
+        }));
+        state.closedOutings = new Set(data.closedOutings || []);
+        state.sizaines = data.sizaines || {};
+        state.sortedList = data.sortedList || [...louveteaux];
+      }
+    } catch (e) {
+      console.log("Erreur loadState:", e);
+    }
+    render();
+    setupRealTimeSync();
+  });
+}
+
+function setupRealTimeSync() {
+  document.getElementById("firebase-status").textContent = "✓ Connecté (Firebase)";
+  document.getElementById("firebase-status").style.color = "var(--text-success)";
+  dbRef.on("value", (snapshot) => {
+    try {
+      const data = snapshot.val();
+      if (data) {
+        state.presences = data.presences || state.presences;
+        state.closedOutings = new Set(data.closedOutings || []);
+        state.sizaines = data.sizaines || state.sizaines;
+        render();
+      }
+    } catch (e) {
+      console.log("Erreur sync:", e);
+    }
+  });
+}
+
+function render() {
+  document.getElementById("sortie-count").textContent = `${state.sorties.length} sortie(s) · ${state.closedOutings.size} validée(s)`;
+
+  let headHTML = `<tr><th style="min-width: 140px;">Louveteau</th><th style="min-width: 90px;">Sizaine</th>`;
+  state.sorties.forEach(s => {
+    const isClosed = state.closedOutings.has(s.id);
+    const canDelete = s.canDelete !== false;
+    headHTML += `<th style="text-align: center; width: 70px; min-width: 60px; opacity: ${isClosed ? '0.6' : '1'}; font-size: 11px;"><div style="display: flex; flex-direction: column; align-items: center; gap: 4px;"><span>${s.label}</span>${canDelete ? `<button onclick="removeOuting('${s.id}')" style="background: 0; border: 0; cursor: ${isClosed ? 'default' : 'pointer'}; opacity: ${isClosed ? '0.3' : '0.7'}; padding: 0; margin: 0; color: var(--text-muted); font-size: 12px;">🗑️</button>` : ''}${isClosed ? `<span style="font-size: 14px;">✓</span>` : ''}</div></th>`;
+  });
+  headHTML += `<th style="min-width: 80px; border-left: 0.5px solid var(--border-strong); color: var(--text-danger);">Absences</th></tr>`;
+  document.getElementById("table-head").innerHTML = headHTML;
+
+  const tbody = document.getElementById("louveteau-rows");
+  tbody.innerHTML = state.sortedList.map((l, idx) => {
+    const louveId = `${l.prenom}-${l.nom}`;
+    const sizaine = state.sizaines[louveId] || "";
+    const absenceCount = countAbsences(louveId);
+    let row = `<tr><td>${l.prenom} ${l.nom}</td><td><select onchange="setSizaine('${louveId}', this.value)" style="width: 100%; padding: 6px 8px; border-radius: var(--radius); border: 0.5px solid var(--border); font-size: 12px;"><option>—</option><option value="noir" ${sizaine === "noir" ? "selected" : ""}>noir</option><option value="gris" ${sizaine === "gris" ? "selected" : ""}>gris</option><option value="blanc" ${sizaine === "blanc" ? "selected" : ""}>blanc</option><option value="brun" ${sizaine === "brun" ? "selected" : ""}>brun</option></select></td>`;
+    state.sorties.forEach(s => {
+      const isClosed = state.closedOutings.has(s.id);
+      const isPresent = state.presences[`${louveId}-${s.id}`];
+      const isAbsent = !isPresent && !isClosed;
+      row += `<td style="text-align: center; background: ${isAbsent ? 'var(--bg-danger)' : 'transparent'}; opacity: ${isClosed ? '0.5' : '1'};"><input type="checkbox" ${isPresent ? 'checked' : ''} ${isClosed ? 'disabled' : ''} onclick="togglePresence('${louveId}', '${s.id}')" style="cursor: ${isClosed ? 'not-allowed' : 'pointer'}; width: 16px; height: 16px;" /></td>`;
+    });
+    row += `<td style="text-align: center; border-left: 0.5px solid var(--border-strong); font-weight: 500; color: ${absenceCount > 0 ? 'var(--text-danger)' : 'var(--text-primary)'};">${absenceCount}</td></tr>`;
+    return row;
+  }).join("");
+
+  const actionBar = document.getElementById("action-buttons");
+  const buttons = state.sorties.filter(s => !state.closedOutings.has(s.id)).map(s => `<button onclick="openValidationModal('${s.id}')">✓ Valider ${s.label}</button>`).join("");
+  actionBar.innerHTML = buttons || "<div style='font-size: 13px; color: var(--text-secondary);'>Aucune sortie à valider</div>";
+}
+
+document.getElementById("modal-confirm").addEventListener("change", updateSendButton);
+loadState();
+  </script>
+</body>
+</html>
